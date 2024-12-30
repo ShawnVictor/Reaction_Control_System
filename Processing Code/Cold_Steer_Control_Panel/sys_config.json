@@ -31,10 +31,10 @@
         {
             "name": "pt_a003",
             "desc": "Tank Pressure",
-            "slope": 0.0,
+            "slope": 1.0,
             "offset": 0.0,
             "y_min": 0.0,
-            "y_max": 100.0,
+            "y_max": 3000.0,
             "position": [65, 50],
             "unit": "Pressure (psia)",
             "color": "GREEN",
@@ -43,14 +43,14 @@
         {
             "name": "pt_a009",
             "desc": "Downstream Pressure",
-            "slope": 0.0,
+            "slope": 1.0,
             "offset": 0.0,
             "y_min": 0.0,
-            "y_max": 100.0,
+            "y_max": 3000.0,
             "position": [445, 50],
             "unit": "Pressure (psia)",
             "color": "GREEN",
-            "enabled": false
+            "enabled": true
         },
         {
             "name": "lc_a016",
@@ -150,7 +150,7 @@
         "linegraph_height": 175,
         "linegraph_buffer_size": 100,
         "linegraph_x_div": 7,
-        "linegraph_y_div": 0,
+        "linegraph_y_div": 5,
         "colors": {
             "GREY": [71, 71, 71],
             "GREEN": [131, 255, 20],

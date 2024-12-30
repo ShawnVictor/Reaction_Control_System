@@ -39,9 +39,6 @@ JSONArray nodes;        // JSON array of nodes
 // Serial Port Settings
 Serial serialPort;
 
-// Sample Data
-float[]   linegraph_sample = new float[100];
-
 // *<--------------------------------------------------Plot Configs-------------------------------------------------->*
 // Settings for Plotter as saved in this file
 JSONObject plotterConfigJSON;
@@ -59,6 +56,7 @@ int[] plot_color;
 
 // Data Matrix for each LineGraph (rows are for each line graph within the single graph, columns are the datapoints)
 float[][] sensor_plot_values;
+float[]   time_values = new float[100];
 
 
 // *<---------------------------------------------------Setup Code--------------------------------------------------->*
@@ -108,6 +106,10 @@ void setup()
     all_plots = new Graph[sensors.size()];
     sensor_plot_values = new float[sensors.size()][linegraph_buffer_size];
     System.out.println("DEBUG: Variables Initialized!");
+    
+    // Setup time Array
+    for (int i = 0 ; i < time_values.length; i++)
+      time_values[i] = float(i);
 
     // Initialize watchdog variables
     nodes = config.getJSONArray("nodes");
@@ -311,11 +313,12 @@ void UpdateSensorValues(JSONObject dataPacket_JSON_Obj)
         
         // Check if this sensor is found in the datapacket
         String sensorName = sensor.getString("name");
-        if(dataPacket_JSON_Obj.hasKey(sensorName))
+        if(dataPacket_JSON_Obj.hasKey(sensorName+"_volts_counts"))
         {
             // Apply the slope and offset to the raw value
-            sensor_raw_values[i] = dataPacket_JSON_Obj.getFloat(sensorName);
+            sensor_raw_values[i] = dataPacket_JSON_Obj.getFloat(sensorName+"_volts_counts");
             sensor_scaled_values[i] = sensor_raw_values[i] * sensor.getFloat("slope") + sensor.getFloat("offset");
+            System.out.println("DEBUG: Data Aquired for sensor: " + sensorName + " = " + sensor_scaled_values[i]);
         }
     }
 }
@@ -334,8 +337,11 @@ void UpdateSensorValueTable()
   // Insert new data
   for(int row = 0; row < sensors.size(); row++)
   {
+    if (!sensors.getJSONObject(row).getBoolean("enabled")) continue;  // Skip if not enabled
+    
     int last_index = sensor_plot_values[row].length-1;
     sensor_plot_values[row][last_index] = sensor_scaled_values[row];
+    System.out.println("DEBUG: Sensor Plot Value Added: " + sensor_plot_values[row][last_index]);
   }
   
 }
@@ -398,8 +404,13 @@ void UpdateSensorVisuals()
         JSONObject sensor = sensors.getJSONObject(i);
         if (all_plots[i] != null && sensor.getBoolean("enabled")) 
         {
-            all_plots[i].LineGraph(linegraph_sample, sensor_plot_values[i]);
-            //Update Sensor Box Values
+          all_plots[i].DrawAxis();
+          for(int j = 0; j < sensor_plot_values.length; j++)
+          {
+            all_plots[i].LineGraph(time_values, sensor_plot_values[i]);
+          }
+          System.out.println("Draw Axis Performed for " + sensor.getString("name"));
+          //Update Sensor Box Values
         }
     }
 }
