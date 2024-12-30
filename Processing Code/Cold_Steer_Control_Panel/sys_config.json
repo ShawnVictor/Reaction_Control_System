@@ -1,7 +1,7 @@
 {
     "serial": {
-        "port": "COM7",
-        "baud_rate": 9600,
+        "port": "COM10",
+        "baud_rate": 115200,
         "node_id": "0x00"
     },
     "nodes":[
@@ -9,18 +9,21 @@
             "sender_id": "0x00",
             "name": "Ground_Station_Cntrlr",
             "led_pos": [100, 100],
+            "timeout_ms": 500,
             "enabled": false
         },
         {
             "sender_id": "0x01",
             "name": "Compressor_Cntrlr",
             "led_pos": [100, 100],
+            "timeout_ms": 500,
             "enabled": false
         },
         {
             "sender_id": "0x02",
             "name": "RCS_Cntrlr",
             "led_pos": [100, 100],
+            "timeout_ms": 500,
             "enabled": true
         }
     ],

@@ -34,10 +34,13 @@ int[] valve_cmds;
 // Watchdog variables
 long[] lastUpdateTimes;  // Timestamps of the last received packet from each node
 int[] nodeStates;        // States for each node (1: Active, 0: Inactive)
-JSONObject nodes;        // JSON array of nodes
+JSONArray nodes;        // JSON array of nodes
 
 // Serial Port Settings
 Serial serialPort;
+
+// Sample Data
+float[]   linegraph_sample = new float[100];
 
 // *<--------------------------------------------------Plot Configs-------------------------------------------------->*
 // Settings for Plotter as saved in this file
@@ -61,33 +64,50 @@ float[][] sensor_plot_values;
 // *<---------------------------------------------------Setup Code--------------------------------------------------->*
 void setup()
 {
-    System.out.println("*STARTING SETUP*");
+    System.out.println("DEBUG: STARTING SETUP!");
 
     // Load in Supporting Images
-    diagram = loadImage("Cold_Steer_Control_Panel.jpg");
-    logo    = loadImage("Cold_Steer_Logo.jpg");
+    //diagram = loadImage("Cold_Steer_Control_Panel.jpg");
+    //logo    = loadImage("Cold_Steer_Logo.jpg");
+    diagram = loadImage("LRA_P&ID.jpg");
+    logo    = loadImage("Quasar Logo.jpg");
+    System.out.println("DEBUG: Image & Diagram Loaded!");
 
     // Load in System Configuration
-    config = loadJSONObject("config.json");
-    sensors = config.getJSONArray("sensors");
-    valves = config.getJSONArray("valves");
-    plot_settings = config.getJSONArray("plot_settings");
-
+    topSketchPath      = sketchPath();
+    plotterConfigJSON  = loadJSONObject(topSketchPath + "/plotter_config.json");
+    config = loadJSONObject(topSketchPath + "/sys_config.json");
+    try
+    {
+      sensors = config.getJSONArray("sensors");
+      valves = config.getJSONArray("valves");
+      plot_settings = config.getJSONObject("plot_settings");
+      System.out.println("DEBUG: Configs Loaded Successfully!");
+    }
+    catch (Exception e){System.out.println(("ERROR: Failed to load configs: " + e.getMessage()));}
+    
     // Load in Const Plot Settings
     linegraph_width       = plot_settings.getInt("linegraph_width");
+    System.out.println("DEBUG: w!");
     linegraph_height      = plot_settings.getInt("linegraph_height");
+    System.out.println("DEBUG: h!");
     linegraph_buffer_size = plot_settings.getInt("linegraph_buffer_size");
+    System.out.println("DEBUG: buff!");
     linegraph_x_div       = plot_settings.getInt("linegraph_x_div");
+    System.out.println("DEBUG: xdiv!");
     linegraph_y_div       = plot_settings.getInt("linegraph_y_div");
+    System.out.println("DEBUG: ydiv!");
     color_swatch          = plot_settings.getJSONObject("colors");
+    System.out.println("DEBUG: Plot Settings Configured!");
 
     // Initialize Variables
-    valve_cmds   = new int[valve.size()];
+    valve_cmds   = new int[valves.size()];
     valve_states = new int[valves.size()];
     sensor_raw_values = new float[sensors.size()];
     sensor_scaled_values = new float[sensors.size()];
     all_plots = new Graph[sensors.size()];
     sensor_plot_values = new float[sensors.size()][linegraph_buffer_size];
+    System.out.println("DEBUG: Variables Initialized!");
 
     // Initialize watchdog variables
     nodes = config.getJSONArray("nodes");
@@ -97,24 +117,27 @@ void setup()
         lastUpdateTimes[i] = millis();  // Set initial time
         nodeStates[i] = 0;              // Assume all nodes are active initially
     }
+    System.out.println("DEBUG: Watchdogs Initialized!");
 
     // Configure Window / Background
-    frame.setTitle("Cold_Steer_Control_Panel"); //Set Window Name
+    surface.setTitle("Cold_Steer_Control_Panel"); //Set Window Name
     size(1905,1000); // Set Window Resolution
     background(30);  // Set Background Color to Greyscale 30 (Dark Grey)
     image(diagram, 387, 285); // Loads in Diagram at set x,y location
     image(logo, 0, 835); // Loads in Logo at set x,y location
-
-    // Get Local File Paths
-    topSketchPath      = sketchPath();
-    plotterConfigJSON  = loadJSONObject(topSketchPath + "/plotter_config.json");
+    System.out.println("DEBUG: Window/Background Configured!");
 
     // Setup Control P5
     cp5 = new ControlP5(this);
 
     // Begin Serial Communications
     JSONObject serialConfig = config.getJSONObject("serial");
-    serialPort = new Serial(this, serialConfig.getString("port"), serialConfig.getInt("baud_rate"));
+    try
+    {
+      serialPort = new Serial(this, serialConfig.getString("port"), serialConfig.getInt("baud_rate"));
+      System.out.println("DEBUG: Sucessful Connection to : " + serialConfig.getString("port") + " @ BAUD: " + serialConfig.getInt("baud_rate"));
+    }
+    catch (Exception e){System.out.println(("ERROR: Failed to establish Serial Connection on : " + serialConfig.getString("port")));}
 
     // Configure Sensors
     for (int i = 0; i < sensors.size(); i++) 
@@ -128,7 +151,7 @@ void setup()
         int[] plot_color = color_swatch.getJSONArray(sensor.getString("color")).getIntArray();
 
         // Configure each Plot
-        all_plots[i]        = new Graph(pos[0], pos[1], linegraph_width, linegraph_height, color(plot_color.getInt(0), plot_color.getInt(1), plot_color.getInt(2)));
+        all_plots[i]        = new Graph(pos[0], pos[1], linegraph_width, linegraph_height, color(plot_color[0], plot_color[1], plot_color[2]));
         all_plots[i].xLabel = " Time(sec) ";
         all_plots[i].yLabel = sensor.getString("unit");
         all_plots[i].Title  = name + ": " + sensor.getString("desc");
@@ -136,26 +159,25 @@ void setup()
         all_plots[i].yDiv   = plot_settings.getInt("linegraph_y_div");
         all_plots[i].yMin   = sensor.getInt("y_min");
         all_plots[i].yMax   = sensor.getInt("y_max");
-        all_plots[i].GraphColor = new color(plot_color.getInt(0), plot_color.getInt(1), plot_color.getInt(2));
+        all_plots[i].GraphColor = color(plot_color[0], plot_color[1], plot_color[2]);
 
 
         // Example: Create text fields for min/max values
-        cp5.addTextfield(name + "mx")
+        cp5.addTextfield(name + "_mx")
             .setPosition(pos[0] - 55, pos[1] - 30)
-            .setText(getPlotterConfigString(name + "mx"))
+            .setText(String.valueOf(all_plots[i].yMax))
             .setWidth(40)
             .setAutoClear(false);
         cp5.addTextfield(name + "mn")
             .setPosition(pos[0] - 55, pos[1] + 190)
-            .setText(getPlotterConfigString(name + "mn"))
+            .setText(String.valueOf(all_plots[i].yMin))
             .setWidth(40)
             .setAutoClear(false);
-        }
-        
+       System.out.println("DEBUG: Successfully Configured sensor: " + name);
     }
 
     // Configure Valves
-    for (int i = 0; i < valves.size(); i++) 
+    for (int i = 0; i < valves.size(); i++)
     {
         JSONObject valve = valves.getJSONObject(i);
 
@@ -163,8 +185,8 @@ void setup()
 
         String name   = valve.getString("name");
         int[] pos     = valve.getJSONArray("position").getIntArray();
-        int[] led_pos = valve.getJSONArray("led_position").getIntArray();
-        int[] green_led_color = color_swatch.getJSONArray("LED_GREEN");
+        int[] led_pos = valve.getJSONArray("led_pos").getIntArray();
+        int[] green_led_color = color_swatch.getJSONArray("LED_GREEN").getIntArray();
 
         // Create toggle for each valve
         cp5.addToggle(name)
@@ -174,21 +196,21 @@ void setup()
             .setColorActive(color(193, 39, 45));
 
         // Create Status LEDs
-        fill(color_swatch.getIntArray(green_led_color[0], green_led_color[1], green_led_color[2]););
+        fill(color(green_led_color[0], green_led_color[1], green_led_color[2]));
         stroke(225);
         strokeWeight(1);
         circle(led_pos[0], led_pos[1], 15);
-        
+        System.out.println("DEBUG: Successfully Configured valve: " + name);
     }
 
-    System.out.println("*SETUP COMPLETED*");
+    System.out.println("DEBUG: SETUP COMPLETED!");
 }
 
 // *<--------------------------------------------------Looped Code--------------------------------------------------->*
 void draw()
 {
     // Attempt to get new Data and covert it to String Format
-    JSONObject dataPacket_JSON_Obj;
+    JSONObject dataPacket_JSON_Obj = null;
     byte[] inBuffer = serialPort.readBytesUntil('\n');
     if (inBuffer != null && inBuffer.length > 0)
     {
@@ -201,12 +223,13 @@ void draw()
     if (dataPacket_JSON_Obj == null){return;}
 
     // Verify recipient ID
-    checkIfPacketIsForMe(JSONObject dataPacket_JSON_Obj);
+    checkIfPacketIsForMe(dataPacket_JSON_Obj);
 
     // Update States & Values
-    UpdateWatchdogStates(JSONObject dataPacket_JSON_Obj);
-    UpdateSensorValues(JSONObject dataPacket_JSON_Obj);
-    UpdateValveStates(JSONObject dataPacket_JSON_Obj);
+    UpdateWatchdogStates(dataPacket_JSON_Obj);
+    UpdateSensorValues(dataPacket_JSON_Obj);
+    UpdateSensorValueTable();
+    UpdateValveStates(dataPacket_JSON_Obj);
 
     //Update Visuals
     UpdateWatchdogVisuals();
@@ -270,7 +293,7 @@ void UpdateWatchdogStates(JSONObject dataPacket_JSON_Obj)
         if (!node.getBoolean("enabled")) continue;  // Skip if not enabled
 
         // Check if this noded is defined in the packet structure
-        if(node.getString("id").equals(senderId))
+        if(node.getString("sender_id").equals(senderId))
         {
             lastUpdateTimes[i] = millis();  // Update the last received time
             nodeStates[i] = 1;              // Mark node as active
@@ -295,6 +318,26 @@ void UpdateSensorValues(JSONObject dataPacket_JSON_Obj)
             sensor_scaled_values[i] = sensor_raw_values[i] * sensor.getFloat("slope") + sensor.getFloat("offset");
         }
     }
+}
+
+void UpdateSensorValueTable()
+{
+  // Shift all data to the left
+  for(int row = 0; row < sensors.size(); row++)
+  {
+    for(int col = 0; col < sensor_plot_values[row].length-1; col++)
+    {
+      sensor_plot_values[row][col] = sensor_plot_values[row][col+1]; 
+    }
+  }
+  
+  // Insert new data
+  for(int row = 0; row < sensors.size(); row++)
+  {
+    int last_index = sensor_plot_values[row].length-1;
+    sensor_plot_values[row][last_index] = sensor_scaled_values[row];
+  }
+  
 }
 
 
@@ -331,7 +374,7 @@ void UpdateWatchdogVisuals()
     {
         long currentTime = millis();
         JSONObject node = nodes.getJSONObject(i);
-        int[] led_pos = node.getJSONArray("led_position").getIntArray();
+        int[] led_pos = node.getJSONArray("led_pos").getIntArray();
         if (!node.getBoolean("enabled")) continue;  // Skip if not enabled
 
         // Check if node is inactive
@@ -343,17 +386,19 @@ void UpdateWatchdogVisuals()
 
         // Update Watchdog LEDs
         updateLED(led_pos, valve_states[i] == 1 ? "LED_GREEN" : "LED_RED");
+    }
 }
 
 
 void UpdateSensorVisuals()
 {
-    for(int i = 0; i < sensors.size(); i++)
+    for(int i = 0; i < all_plots.length; i++)
     {
         // Update The Plot (if applicable)
-        if (all_plots[i] != null) 
+        JSONObject sensor = sensors.getJSONObject(i);
+        if (all_plots[i] != null && sensor.getBoolean("enabled")) 
         {
-            all_plots[i].update(sensor_scaled_values[i]);
+            all_plots[i].LineGraph(linegraph_sample, sensor_plot_values[i]);
             //Update Sensor Box Values
         }
     }
@@ -365,7 +410,7 @@ void UpdateValveVisuals()
     for (int i = 0; i < valves.size(); i++)
     {
         JSONObject valve = valves.getJSONObject(i);
-        int[] led_pos = valve.getJSONArray("led_position").getIntArray();
+        int[] led_pos = valve.getJSONArray("led_pos").getIntArray();
         if (!valve.getBoolean("enabled")) continue;  // Skip if not enabled
 
         // Update Valve Talkbacks
