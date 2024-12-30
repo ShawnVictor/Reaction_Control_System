@@ -1,0 +1,160 @@
+{
+    "serial": {
+        "port": "COM7",
+        "baud_rate": 9600,
+        "node_id": "0x00"
+    },
+    "nodes":[
+        {
+            "sender_id": "0x00",
+            "name": "Ground_Station_Cntrlr",
+            "led_pos": [100, 100],
+            "enabled": false
+        },
+        {
+            "sender_id": "0x01",
+            "name": "Compressor_Cntrlr",
+            "led_pos": [100, 100],
+            "enabled": false
+        },
+        {
+            "sender_id": "0x02",
+            "name": "RCS_Cntrlr",
+            "led_pos": [100, 100],
+            "enabled": true
+        }
+    ],
+    "sensors": [
+        {
+            "name": "pt_a003",
+            "desc": "Tank Pressure",
+            "slope": 0.0,
+            "offset": 0.0,
+            "y_min": 0.0,
+            "y_max": 100.0,
+            "position": [65, 50],
+            "unit": "Pressure (psia)",
+            "color": "GREEN",
+            "enabled": true
+        },
+        {
+            "name": "pt_a009",
+            "desc": "Downstream Pressure",
+            "slope": 0.0,
+            "offset": 0.0,
+            "y_min": 0.0,
+            "y_max": 100.0,
+            "position": [445, 50],
+            "unit": "Pressure (psia)",
+            "color": "GREEN",
+            "enabled": false
+        },
+        {
+            "name": "lc_a016",
+            "desc": "Pitch+ Force",
+            "slope": 0.0,
+            "offset": 0.0,
+            "y_min": 0.0,
+            "y_max": 100.0,
+            "position": [1585, 50],
+            "unit": "Force (lbf)",
+            "color": "GREY",
+            "enabled": false
+        },
+        {
+            "name": "lc_a017",
+            "desc": "Pitch- Force",
+            "slope": 0.0,
+            "offset": 0.0,
+            "y_min": 0.0,
+            "y_max": 100.0,
+            "position": [1205, 50],
+            "unit": "Force (lbf)",
+            "color": "GREY",
+            "enabled": false
+        },
+        {
+            "name": "lc_a018",
+            "desc": "Yaw+ Force",
+            "slope": 0.0,
+            "offset": 0.0,
+            "y_min": 0.0,
+            "y_max": 100.0,
+            "position": [825, 50],
+            "unit": "Force (lbf)",
+            "color": "GREY",
+            "enabled": false
+        },
+        {
+            "name": "lc_a019",
+            "desc": "Yaw- Force",
+            "slope": 0.0,
+            "offset": 0.0,
+            "y_min": 0.0,
+            "y_max": 100.0,
+            "position": [65, 320],
+            "unit": "Force (lbf)",
+            "color": "GREY",
+            "enabled": false
+        }
+    ],
+    "valves": [
+        {
+            "name": "sv_a010_cmd",
+            "position": [980, 300],
+            "led_pos": [1000, 320],
+            "state": 0,
+            "enabled": true
+        },
+        {
+            "name": "sv_a011_cmd",
+            "position": [980, 300],
+            "led_pos": [1000, 320],
+            "state": 0,
+            "enabled": false
+        },
+        {
+            "name": "sv_a012_cmd",
+            "position": [980, 300],
+            "led_pos": [1000, 320],
+            "state": 0,
+            "enabled": false
+        },
+        {
+            "name": "sv_a013_cmd",
+            "position": [980, 300],
+            "led_pos": [1000, 320],
+            "state": 0,
+            "enabled": false
+        },
+        {
+            "name": "sv_a014_cmd",
+            "position": [980, 300],
+            "led_pos": [1000, 320],
+            "state": 0,
+            "enabled": false
+        },
+        {
+            "name": "sv_a015_cmd",
+            "position": [980, 300],
+            "led_pos": [1000, 320],
+            "state": 0,
+            "enabled": false
+        }
+    ],
+    "plot_settings": {
+        "linegraph_width": 300,
+        "linegraph_height": 175,
+        "linegraph_buffer_size": 100,
+        "linegraph_x_div": 7,
+        "linegraph_y_div": 0,
+        "colors": {
+            "GREY": [71, 71, 71],
+            "GREEN": [131, 255, 20],
+            "RED": [147, 39, 143],
+            "PURPLE": [160, 32, 240],
+            "LED_GREEN": [131, 255, 20],
+            "LED_RED": [193, 39, 45]
+        }
+    }
+}
