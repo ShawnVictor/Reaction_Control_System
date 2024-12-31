@@ -32,7 +32,7 @@
 #define LC4_SCK_PIN       13 // D13
 #define XBEE_TX           0  // D0 (RX)
 #define XBEE_RX           1  // D1 (TX)
-
+#define SENDER_ID         0x01
 
 // *<-------------------------------------------------Global Variables------------------------------------------------->*
 // Defining BNO085 IMU Objects from Library
@@ -42,7 +42,7 @@ sh2_SensorId_t    reportType;
 
 // Defining ADS1015 ADC Objects from Library
 Adafruit_ADS1115 ads;
-String adc_channel_names[] = {"pt_a003_volts","pt_a009_volts","batt_mon_volts","ads1115_ch4","lc_a016","lc_a017","lc_a018","lc_a019"};
+String adc_channel_names[] = {"pt_a003","pt_a009","batt_mon","ads1115_ch4","lc_a016","lc_a017","lc_a018","lc_a019"};
 int16_t adc_raw_counts[] = {0,0,0,0,0,0,0,0};
 
 // Defining HX711 ADC Objects from Library
@@ -110,8 +110,8 @@ void setup()
   lc3.begin();
   lc4.begin();
   Serial.println("DEBUG: HX711s Configured!");
-  tareHX711();
-  Serial.println("DEBUG: HX711s Tared!");
+  //tareHX711();
+  //Serial.println("DEBUG: HX711s Tared!");
 
   //Attempt to connect to IMU
   bool IMU_isConnected = false;
@@ -309,8 +309,12 @@ String getJsonString()
     String serialOutputString = "{";
     String valve_names[]    = {"sv_a010_tkbk","sv_a011_tkbk","sv_a012_tkbk","sv_a013_tkbk","sv_a014_tkbk","sv_a015_tkbk"};
 
+    // Packet Header
+    serialOutputString += "\"recipient_id\": " + String("0x00");
+    serialOutputString += ", \"sender_id\": " + String("0x02");
+
     // System Variables
-    serialOutputString += "\"t\": "            + String(millis());
+    serialOutputString += ", \"t\": "            + String(millis());
     serialOutputString += ", \"sys_state\": "   + String(sys_state);
     
     // IMU Variables
@@ -328,13 +332,13 @@ String getJsonString()
     // ADC Variables
     for(int i = 0; i < 4; i++)
     {
-        serialOutputString += ", \"" + adc_channel_names[i] + "_counts\": " + String(adc_raw_counts[i]);
+        serialOutputString += ", \"" + adc_channel_names[i] + "_volts_counts\": " + String(adc_raw_counts[i]);
     }
 
     // Load Cell Variables
     for(int i = 4; i < 8; i++)
     {
-        serialOutputString += ", \"" + adc_channel_names[i] + "_counts\": " + String(adc_raw_counts[i]);
+        serialOutputString += ", \"" + adc_channel_names[i] + "_volts_counts\": " + String(adc_raw_counts[i]);
     }
 
     serialOutputString += "}";

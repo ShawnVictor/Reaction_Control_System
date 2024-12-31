@@ -67,7 +67,7 @@ void setup()
     // Load in Supporting Images
     //diagram = loadImage("Cold_Steer_Control_Panel.jpg");
     //logo    = loadImage("Cold_Steer_Logo.jpg");
-    diagram = loadImage("LRA_P&ID.jpg");
+    diagram = loadImage("Cold_Steer_P&ID.jpg");
     logo    = loadImage("Quasar Logo.jpg");
     System.out.println("DEBUG: Image & Diagram Loaded!");
 
@@ -86,17 +86,11 @@ void setup()
     
     // Load in Const Plot Settings
     linegraph_width       = plot_settings.getInt("linegraph_width");
-    System.out.println("DEBUG: w!");
     linegraph_height      = plot_settings.getInt("linegraph_height");
-    System.out.println("DEBUG: h!");
     linegraph_buffer_size = plot_settings.getInt("linegraph_buffer_size");
-    System.out.println("DEBUG: buff!");
     linegraph_x_div       = plot_settings.getInt("linegraph_x_div");
-    System.out.println("DEBUG: xdiv!");
     linegraph_y_div       = plot_settings.getInt("linegraph_y_div");
-    System.out.println("DEBUG: ydiv!");
     color_swatch          = plot_settings.getJSONObject("colors");
-    System.out.println("DEBUG: Plot Settings Configured!");
 
     // Initialize Variables
     valve_cmds   = new int[valves.size()];
@@ -149,14 +143,15 @@ void setup()
         if(!sensor.getBoolean("enabled")){continue;}  // Skip if not enabled
 
         String name = sensor.getString("name");
-        int[] pos = sensor.getJSONArray("position").getIntArray();
+        int[] pos = sensor.getJSONArray("plot_pos").getIntArray();
+        int[] label_pos  = sensor.getJSONArray("label_pos").getIntArray();
         int[] plot_color = color_swatch.getJSONArray(sensor.getString("color")).getIntArray();
 
         // Configure each Plot
         all_plots[i]        = new Graph(pos[0], pos[1], linegraph_width, linegraph_height, color(plot_color[0], plot_color[1], plot_color[2]));
         all_plots[i].xLabel = " Time(sec) ";
         all_plots[i].yLabel = sensor.getString("unit");
-        all_plots[i].Title  = name + ": " + sensor.getString("desc");
+        all_plots[i].Title  = name.toUpperCase().replace("_", "-") + ": " + sensor.getString("desc");
         all_plots[i].xDiv   = plot_settings.getInt("linegraph_x_div");
         all_plots[i].yDiv   = plot_settings.getInt("linegraph_y_div");
         all_plots[i].yMin   = sensor.getInt("y_min");
@@ -175,6 +170,11 @@ void setup()
             .setText(String.valueOf(all_plots[i].yMin))
             .setWidth(40)
             .setAutoClear(false);
+            
+       // Add Labels for Each Sensor Box
+       text(name.toUpperCase().replace("_", "-"), label_pos[0]+33, label_pos[1]-8);
+       
+       
        System.out.println("DEBUG: Successfully Configured sensor: " + name);
     }
 
@@ -186,7 +186,7 @@ void setup()
         if(!valve.getBoolean("enabled")){continue;}  // Skip if not enabled
 
         String name   = valve.getString("name");
-        int[] pos     = valve.getJSONArray("position").getIntArray();
+        int[] pos     = valve.getJSONArray("valve_pos").getIntArray();
         int[] led_pos = valve.getJSONArray("led_pos").getIntArray();
         int[] green_led_color = color_swatch.getJSONArray("LED_GREEN").getIntArray();
 
@@ -205,6 +205,18 @@ void setup()
         System.out.println("DEBUG: Successfully Configured valve: " + name);
     }
 
+    // Add Labels for Watchdog LEDs
+    textSize(12);stroke(225);fill(225);
+    for (int i = 0; i < nodes.size(); i++)
+    {
+        JSONObject node = nodes.getJSONObject(i);
+        if(!node.getBoolean("enabled")){continue;}
+        String nodeName = node.getString("name");
+        int[]  led_pos  = node.getJSONArray("led_pos").getIntArray();
+        text(nodeName, led_pos[0]+15, led_pos[1]+5);
+    }
+     
+    
     System.out.println("DEBUG: SETUP COMPLETED!");
 }
 
@@ -364,15 +376,6 @@ void UpdateValveStates(JSONObject dataPacket_JSON_Obj)
 }
 
 
-void updateLED(int[] ledPos, String colorKey) 
-{
-    JSONArray colorArray = color_swatch.getJSONArray(colorKey);
-    int[] ledColor = {colorArray.getInt(0), colorArray.getInt(1), colorArray.getInt(2)};
-    fill(colorArray.getInt(0), colorArray.getInt(1), colorArray.getInt(2));
-    circle(ledPos[0], ledPos[1], 15);
-}
-
-
 void UpdateWatchdogVisuals()
 {
     // Update Watchdogs Visuals
@@ -391,8 +394,32 @@ void UpdateWatchdogVisuals()
         }
 
         // Update Watchdog LEDs
-        updateLED(led_pos, valve_states[i] == 1 ? "LED_GREEN" : "LED_RED");
+        updateLED(led_pos, nodeStates[i] == 1 ? "LED_GREEN" : "LED_RED");
+        
+        // Update Watchdog Timestamp
+        int[] label_pos = node.getJSONArray("led_pos").getIntArray();
+        label_pos[0]-= 93;
+        label_pos[1]-= 12;
+        updateDataBox(label_pos, lastUpdateTimes[i]);
     }
+}
+
+
+void updateLED(int[] ledPos, String colorKey) 
+{
+    JSONArray colorArray = color_swatch.getJSONArray(colorKey);
+    int[] ledColor = {colorArray.getInt(0), colorArray.getInt(1), colorArray.getInt(2)};
+    fill(colorArray.getInt(0), colorArray.getInt(1), colorArray.getInt(2));
+    circle(ledPos[0], ledPos[1], 15);
+}
+
+void updateDataBox(int[] labelPos, long data)
+{
+    //int[] label_color = color_swatch.getJSONArray("GREEN").getIntArray();stroke(label_color[0], label_color[1], label_color[2]);strokeWeight(2);
+    fill(40); color(0);
+    rect(labelPos[0],labelPos[1],75,25, 0); // rect(xPos, yPos, Width, Height, Radius)
+    textSize(12);stroke(225);fill(225);
+    text(String.valueOf((int)data), labelPos[0]+70, labelPos[1]+17);
 }
 
 
@@ -409,8 +436,18 @@ void UpdateSensorVisuals()
           {
             all_plots[i].LineGraph(time_values, sensor_plot_values[i]);
           }
-          System.out.println("Draw Axis Performed for " + sensor.getString("name"));
-          //Update Sensor Box Values
+          
+          // Sensor Label Updates
+          String label_color_name = sensor.getString("color");
+          int[] label_color = color_swatch.getJSONArray(label_color_name).getIntArray();
+          fill(40); color(0);stroke(label_color[0], label_color[1], label_color[2]);strokeWeight(2);
+          int[] label_pos = sensor.getJSONArray("label_pos").getIntArray();
+          String name     = sensor.getString("name");
+          String unit     = sensor.getString("unit");
+          rect(label_pos[0],label_pos[1],100,25, 10.0); //OTC3
+          textSize(12);stroke(225);fill(225); 
+          text(sensor_plot_values[i][sensor_plot_values[i].length-1], label_pos[0]+65, label_pos[1]+16);
+          text(unit.substring(unit.indexOf("(") + 1, unit.indexOf(")")).toUpperCase(), label_pos[0]+95, label_pos[1]+16);
         }
     }
 }
