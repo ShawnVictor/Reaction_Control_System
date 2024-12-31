@@ -1,7 +1,7 @@
 /**
  *   RCS_IMU_Board_Ctrlr_Algo.ino
  *   Developed by: Shawn Victor
- *   Last Modified: 12-29-2024
+ *   Last Modified: 12-31-2024
  */
 
 // *<-----------------------------------------------------Libraries----------------------------------------------------->*
@@ -43,7 +43,7 @@ sh2_SensorId_t    reportType;
 // Defining ADS1015 ADC Objects from Library
 Adafruit_ADS1115 ads;
 String adc_channel_names[] = {"pt_a003","pt_a009","batt_mon","ads1115_ch4","lc_a016","lc_a017","lc_a018","lc_a019"};
-int16_t adc_raw_counts[] = {0,0,0,0,0,0,0,0};
+int32_t adc_raw_counts[] = {0,0,0,0,0,0,0,0};
 
 // Defining HX711 ADC Objects from Library
 Adafruit_HX711 lc1(LC1_DATA_PIN, LC1_SCK_PIN);
