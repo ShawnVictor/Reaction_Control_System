@@ -135,6 +135,13 @@
     ],
     "valves": [
         {
+            "name": "log_enable",
+            "valve_pos": [530, 859],
+            "led_pos": [1228, 322],
+            "state": 0,
+            "enabled": true
+        },
+        {
             "name": "sv_a010",
             "valve_pos": [1238, 365],
             "led_pos": [1228, 322],

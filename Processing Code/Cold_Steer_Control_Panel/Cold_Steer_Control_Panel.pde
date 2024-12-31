@@ -256,7 +256,7 @@ void draw()
     UpdateValveVisuals();
 
     // Handle Logging if enabled and the log file has already been created, write the current states to the file
-    //HandleLogging();
+    HandleLogging();
 
     // Read Valve Toggle Switches, Send Command Packets out through the Serial Line
 
@@ -507,6 +507,48 @@ void HandleLogging()
     logFile.flush();
 }
 
+void toggleLogging()
+{
+   isLogging = !isLogging; // Toggle the logging state
+   valve_states[0] = isLogging ? 1 : 0; // Update the state of the 1st valve which should always be the log enable cmd
+
+  if (isLogging) 
+  {
+    // Start logging: open a new CSV file
+    String timestamp = nf(year(), 4) + nf(month(), 2) + nf(day(), 2) + "_" + nf(hour(), 2) + nf(minute(), 2) + nf(second(), 2);
+    logFile = createWriter("RCS_Log_" + timestamp + ".csv");
+    
+    String headerRow = "Time(ms)";
+    // Log Sensor Values
+    for(int i = 0; i < sensors.size(); i++)
+    {
+      JSONObject sensor = sensors.getJSONObject(i);
+      if(!sensor.getBoolean("enabled")) {continue;}
+      headerRow += "," + sensor.getString("name");
+    }
+      
+    // Log Valve CMDs & States
+    for(int i = 0; i < valves.size(); i++)
+    {
+      JSONObject valve = valves.getJSONObject(i);
+      if(!valve.getBoolean("enabled")) {continue;}
+      headerRow += "," + valve.getString("name") + "_tkbk," + valve.getString("name") + "_cmd";
+    }
+    logFile.println(headerRow); // Header
+    System.out.println("DEBUG: LOG STARTED!!");
+  } 
+  else 
+  {
+    // Stop logging: close the CSV file
+    if (logFile != null) 
+    {
+      System.out.println("DEBUG: LOG SECURED!");
+      logFile.flush();
+      logFile.close();
+      logFile = null;
+    }
+  }
+}
 
 // *<----------------------------------------------Control Events----------------------------------------------->*
 void controlEvent(ControlEvent theEvent) 
@@ -514,6 +556,8 @@ void controlEvent(ControlEvent theEvent)
   // Update Toggle Switch Color
   if(theEvent.isAssignableFrom(Toggle.class))
   {
+    System.out.println("DEBUG: " + theEvent.getName() + " Toggle detected!");
+    // Handle Valve Toggles
     for(int i = 0; i < valves.size(); i++)
     {
       JSONObject valve = valves.getJSONObject(i);
@@ -524,6 +568,12 @@ void controlEvent(ControlEvent theEvent)
       
       if(theEvent.getValue() == 1 && theEvent.getName().equals(valve_name)){cp5.get(Toggle.class, valve_name).setColorActive(color(green_color_rgb[0],green_color_rgb[1],green_color_rgb[2]));}
       else{cp5.get(Toggle.class, valve_name).setColorActive(color(red_color_rgb[0],red_color_rgb[1],red_color_rgb[2]));}
-    }
   }
+  
+  // Check if the valve is the log_enabled cmd and is ON
+  if(theEvent.getName().equals("log_enable"))
+  {
+    toggleLogging();
+  }
+ }
 }
