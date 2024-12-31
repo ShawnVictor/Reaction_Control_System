@@ -58,6 +58,10 @@ int[] plot_color;
 float[][] sensor_plot_values;
 float[]   time_values = new float[100];
 
+// Variables for Logging
+boolean isLogging = false;
+PrintWriter logFile;
+
 
 // *<---------------------------------------------------Setup Code--------------------------------------------------->*
 void setup()
@@ -65,8 +69,6 @@ void setup()
     System.out.println("DEBUG: STARTING SETUP!");
 
     // Load in Supporting Images
-    //diagram = loadImage("Cold_Steer_Control_Panel.jpg");
-    //logo    = loadImage("Cold_Steer_Logo.jpg");
     diagram = loadImage("Cold_Steer_P&ID.jpg");
     logo    = loadImage("Quasar Logo.jpg");
     System.out.println("DEBUG: Image & Diagram Loaded!");
@@ -114,6 +116,9 @@ void setup()
         nodeStates[i] = 0;              // Assume all nodes are active initially
     }
     System.out.println("DEBUG: Watchdogs Initialized!");
+    
+    // Initialize the log file variable (but dont open it yet)
+    logFile = null;
 
     // Configure Window / Background
     surface.setTitle("Cold_Steer_Control_Panel"); //Set Window Name
@@ -250,6 +255,9 @@ void draw()
     UpdateSensorVisuals();
     UpdateValveVisuals();
 
+    // Handle Logging if enabled and the log file has already been created, write the current states to the file
+    //HandleLogging();
+
     // Read Valve Toggle Switches, Send Command Packets out through the Serial Line
 
 }
@@ -330,7 +338,7 @@ void UpdateSensorValues(JSONObject dataPacket_JSON_Obj)
             // Apply the slope and offset to the raw value
             sensor_raw_values[i] = dataPacket_JSON_Obj.getFloat(sensorName+"_volts_counts");
             sensor_scaled_values[i] = sensor_raw_values[i] * sensor.getFloat("slope") + sensor.getFloat("offset");
-            System.out.println("DEBUG: Data Aquired for sensor: " + sensorName + " = " + sensor_scaled_values[i]);
+            //System.out.println("DEBUG: Data Aquired for sensor: " + sensorName + " = " + sensor_scaled_values[i]);
         }
     }
 }
@@ -353,7 +361,7 @@ void UpdateSensorValueTable()
     
     int last_index = sensor_plot_values[row].length-1;
     sensor_plot_values[row][last_index] = sensor_scaled_values[row];
-    System.out.println("DEBUG: Sensor Plot Value Added: " + sensor_plot_values[row][last_index]);
+    //System.out.println("DEBUG: Sensor Plot Value Added: " + sensor_plot_values[row][last_index]);
   }
   
 }
@@ -464,4 +472,58 @@ void UpdateValveVisuals()
         // Update Valve Talkbacks
         updateLED(led_pos, valve_states[i] == 1 ? "LED_GREEN" : "LED_RED");
     }
+}
+
+void HandleLogging()
+{
+    // This will hold the full csv string to be written to the file
+    String csvString = str(millis());
+  
+    // Check that the logging switch is active and the file we are writing to has been initialized
+    if (isLogging && logFile != null)
+    {
+      // Log Time
+      String data = str(millis());
+      
+      // Log Sensor Values
+      for(int i = 0; i < sensors.size(); i++)
+      {
+        JSONObject sensor = sensors.getJSONObject(i);
+        if(!sensor.getBoolean("enabled")) {continue;}
+        csvString += "," + sensor_scaled_values[i];
+      }
+      
+      // Log Valve CMDs & States
+      for(int i = 0; i < valves.size(); i++)
+      {
+        JSONObject valve = valves.getJSONObject(i);
+        if(!valve.getBoolean("enabled")) {continue;}
+        csvString += "," + valve_states[i] + "," + valve_cmds[i];
+      }
+    }
+    
+    // Write to the log file
+    logFile.println(csvString);
+    logFile.flush();
+}
+
+
+// *<----------------------------------------------Control Events----------------------------------------------->*
+void controlEvent(ControlEvent theEvent) 
+{
+  // Update Toggle Switch Color
+  if(theEvent.isAssignableFrom(Toggle.class))
+  {
+    for(int i = 0; i < valves.size(); i++)
+    {
+      JSONObject valve = valves.getJSONObject(i);
+      String valve_name = valve.getString("name");
+      
+      int[] red_color_rgb = color_swatch.getJSONArray("RED").getIntArray();
+      int[] green_color_rgb = color_swatch.getJSONArray("GREEN").getIntArray();
+      
+      if(theEvent.getValue() == 1 && theEvent.getName().equals(valve_name)){cp5.get(Toggle.class, valve_name).setColorActive(color(green_color_rgb[0],green_color_rgb[1],green_color_rgb[2]));}
+      else{cp5.get(Toggle.class, valve_name).setColorActive(color(red_color_rgb[0],red_color_rgb[1],red_color_rgb[2]));}
+    }
+  }
 }
