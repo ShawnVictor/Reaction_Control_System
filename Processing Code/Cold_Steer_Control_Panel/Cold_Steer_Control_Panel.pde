@@ -500,11 +500,12 @@ void HandleLogging()
         if(!valve.getBoolean("enabled")) {continue;}
         csvString += "," + valve_states[i] + "," + valve_cmds[i];
       }
+      
+      // Write to the log file
+      logFile.println(csvString);
+      logFile.flush();
+      System.out.println("The following csv stirng was added to the log: " + csvString);
     }
-    
-    // Write to the log file
-    logFile.println(csvString);
-    logFile.flush();
 }
 
 void toggleLogging()

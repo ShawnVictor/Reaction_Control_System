@@ -29,6 +29,19 @@
     ],
     "sensors": [
         {
+            "name": "qx",
+            "desc": "Quaternion Magnitudes",
+            "slope": 1.0,
+            "offset": 0.0,
+            "y_min": -1.0,
+            "y_max": 1.0,
+            "plot_pos": [1585, 600],
+            "label_pos": [687,540],
+            "unit": "Quaternion Magnitude (-)",
+            "color": "GREEN",
+            "enabled": true
+        },
+        {
             "name": "pt_a003",
             "desc": "Tank Pressure",
             "slope": 1.0,
@@ -70,13 +83,13 @@
         {
             "name": "lc_a017",
             "desc": "Pitch- Force",
-            "slope": 1.0,
-            "offset": 0.0,
-            "y_min": -30000.0,
-            "y_max": 30000.0,
+            "slope": 0.001821,
+            "offset": -78.08717,
+            "y_min": 0.0,
+            "y_max": 5000,
             "plot_pos": [445, 50],
             "label_pos": [1350,400],
-            "unit": "Force (lbf)",
+            "unit": "Force (g)",
             "color": "GREY",
             "enabled": true
         },
