@@ -1,6 +1,7 @@
 {
     "serial": {
-        "port": "COM10",
+        "data_in_port": "COM18",
+        "data_out_port": "COM3",
         "baud_rate": 115200,
         "node_id": "0x00"
     },
@@ -29,8 +30,23 @@
     ],
     "sensors": [
         {
+            "gid": "0",
+            "name": "rcs_tclock",
+            "desc": "RCS Main Controller T Clock",
+            "slope": 1.0,
+            "offset": 0.0,
+            "y_min": 0.0,
+            "y_max": 100000.0,
+            "plot_pos": [0, 0],
+            "label_pos": [0,0],
+            "unit": "Time (s)",
+            "color": "GREY",
+            "enabled": true
+        },
+        {
+            "gid": "1",
             "name": "qx",
-            "desc": "Quaternion Magnitudes",
+            "desc": "Quaternion Magnitude qx",
             "slope": 1.0,
             "offset": 0.0,
             "y_min": -1.0,
@@ -42,6 +58,49 @@
             "enabled": true
         },
         {
+            "gid": "2",
+            "name": "qy",
+            "desc": "Quaternion Magnitude qy",
+            "slope": 1.0,
+            "offset": 0.0,
+            "y_min": -1.0,
+            "y_max": 1.0,
+            "plot_pos": [1585, 600],
+            "label_pos": [687,540],
+            "unit": "Quaternion Magnitude (-)",
+            "color": "GREEN",
+            "enabled": true
+        },
+        {
+            "gid": "3",
+            "name": "qz",
+            "desc": "Quaternion Magnitude qz",
+            "slope": 1.0,
+            "offset": 0.0,
+            "y_min": -1.0,
+            "y_max": 1.0,
+            "plot_pos": [1585, 600],
+            "label_pos": [687,540],
+            "unit": "Quaternion Magnitude (-)",
+            "color": "GREEN",
+            "enabled": true
+        },
+        {
+            "gid": "4",
+            "name": "qr",
+            "desc": "Quaternion Magnitude qr",
+            "slope": 1.0,
+            "offset": 0.0,
+            "y_min": -1.0,
+            "y_max": 1.0,
+            "plot_pos": [1585, 600],
+            "label_pos": [687,540],
+            "unit": "Quaternion Magnitude (-)",
+            "color": "GREY",
+            "enabled": true
+        },
+        {
+            "gid": "5",
             "name": "pt_a003",
             "desc": "Tank Pressure",
             "slope": 1.0,
@@ -55,6 +114,7 @@
             "enabled": true
         },
         {
+            "gid": "6",
             "name": "pt_a009",
             "desc": "Downstream Pressure",
             "slope": 1.0,
@@ -68,6 +128,35 @@
             "enabled": true
         },
         {
+            "gid": "7",
+            "name": "rcs_batt_mon",
+            "desc": "RCS Battery Pack Voltage",
+            "slope": 1.0,
+            "offset": 0.0,
+            "y_min": 0.0,
+            "y_max": 3000.0,
+            "plot_pos": [0, 0],
+            "label_pos": [0,0],
+            "unit": "Volts (V)",
+            "color": "GREEN",
+            "enabled": false
+        },
+        {
+            "gid": "8",
+            "name": "rcs_adc_ch_4",
+            "desc": "RCS ADC CH4",
+            "slope": 1.0,
+            "offset": 0.0,
+            "y_min": 0.0,
+            "y_max": 3000.0,
+            "plot_pos": [0, 0],
+            "label_pos": [0,0],
+            "unit": "Counts (-)",
+            "color": "GREY",
+            "enabled": false
+        },
+        {
+            "gid": "9",
             "name": "lc_a016",
             "desc": "Pitch+ Force",
             "slope": 1.0,
@@ -81,6 +170,7 @@
             "enabled": true
         },
         {
+            "gid": "A",
             "name": "lc_a017",
             "desc": "Pitch- Force",
             "slope": 0.001821,
@@ -94,6 +184,7 @@
             "enabled": true
         },
         {
+            "gid": "B",
             "name": "lc_a018",
             "desc": "Yaw+ Force",
             "slope": 1.0,
@@ -107,12 +198,13 @@
             "enabled": true
         },
         {
+            "gid": "C",
             "name": "lc_a019",
             "desc": "Yaw- Force",
             "slope": 1.0,
             "offset": 0.0,
-            "y_min": -5000.0,
-            "y_max": 1000.0,
+            "y_min": -10000.0,
+            "y_max": 10000.0,
             "plot_pos": [1205, 50],
             "label_pos": [1350,585],
             "unit": "Force (lbf)",
@@ -120,6 +212,7 @@
             "enabled": true
         },
         {
+            "gid": "D",
             "name": "lc_a020",
             "desc": "Yaw- Force",
             "slope": 1.0,
@@ -133,6 +226,7 @@
             "enabled": true
         },
         {
+            "gid": "E",
             "name": "lc_a021",
             "desc": "Yaw- Force",
             "slope": 1.0,
@@ -148,6 +242,7 @@
     ],
     "valves": [
         {
+            "gid": "F",
             "name": "log_enable",
             "valve_pos": [530, 859],
             "led_pos": [1228, 322],
@@ -155,6 +250,7 @@
             "enabled": true
         },
         {
+            "gid": "G",
             "name": "sv_a010",
             "valve_pos": [1238, 365],
             "led_pos": [1228, 322],
@@ -162,6 +258,7 @@
             "enabled": true
         },
         {
+            "gid": "H",
             "name": "sv_a011",
             "valve_pos": [1290, 460],
             "led_pos": [1281, 417],
@@ -169,6 +266,7 @@
             "enabled": true
         },
         {
+            "gid": "I",
             "name": "sv_a012",
             "valve_pos": [1238, 554],
             "led_pos": [1228, 508],
@@ -176,6 +274,7 @@
             "enabled": true
         },
         {
+            "gid": "J",
             "name": "sv_a013",
             "valve_pos": [1290, 643],
             "led_pos": [1281, 600],
@@ -183,6 +282,7 @@
             "enabled": true
         },
         {
+            "gid": "K",
             "name": "sv_a014",
             "valve_pos": [1238, 734],
             "led_pos": [1228, 690],
@@ -190,12 +290,22 @@
             "enabled": true
         },
         {
+            "gid": "L",
             "name": "sv_a015",
             "valve_pos": [1290, 828],
             "led_pos": [1281, 785],
             "state": 0,
             "enabled": true
+        },
+        {
+            "gid": "M",
+            "name": "rcs_sys_state",
+            "valve_pos": [1300, 828],
+            "led_pos": [1281, 785],
+            "state": 0,
+            "enabled": true
         }
+        
     ],
     "plot_settings": {
         "linegraph_width": 300,

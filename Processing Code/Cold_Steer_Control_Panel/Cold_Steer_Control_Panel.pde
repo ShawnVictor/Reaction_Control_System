@@ -33,11 +33,13 @@ int[] valve_cmds;
 
 // Watchdog variables
 long[] lastUpdateTimes;  // Timestamps of the last received packet from each node
+long[] nodeTClocks;      // Timestamps of the latest tclock recieved by the node
 int[] nodeStates;        // States for each node (1: Active, 0: Inactive)
 JSONArray nodes;        // JSON array of nodes
 
 // Serial Port Settings
-Serial serialPort;
+Serial serialInPort;
+Serial serialOutPort;
 
 // *<--------------------------------------------------Plot Configs-------------------------------------------------->*
 // Settings for Plotter as saved in this file
@@ -62,6 +64,8 @@ float[]   time_values = new float[100];
 boolean isLogging = false;
 PrintWriter logFile;
 
+//Program States
+boolean setupComplete = false;
 
 // *<---------------------------------------------------Setup Code--------------------------------------------------->*
 void setup()
@@ -70,7 +74,7 @@ void setup()
 
     // Load in Supporting Images
     diagram = loadImage("Cold_Steer_P&ID.jpg");
-    logo    = loadImage("Quasar Logo.jpg");
+    logo    = loadImage("Cold_Steer_Logo.jpg");
     System.out.println("DEBUG: Image & Diagram Loaded!");
 
     // Load in System Configuration
@@ -110,6 +114,7 @@ void setup()
     // Initialize watchdog variables
     nodes = config.getJSONArray("nodes");
     lastUpdateTimes = new long[nodes.size()];
+    nodeTClocks     = new long[nodes.size()];
     nodeStates = new int[nodes.size()];
     for (int i = 0; i < nodes.size(); i++) {
         lastUpdateTimes[i] = millis();  // Set initial time
@@ -135,11 +140,18 @@ void setup()
     JSONObject serialConfig = config.getJSONObject("serial");
     try
     {
-      serialPort = new Serial(this, serialConfig.getString("port"), serialConfig.getInt("baud_rate"));
-      System.out.println("DEBUG: Sucessful Connection to : " + serialConfig.getString("port") + " @ BAUD: " + serialConfig.getInt("baud_rate"));
+      serialInPort = new Serial(this, serialConfig.getString("data_in_port"), serialConfig.getInt("baud_rate"));
+      System.out.println("DEBUG: Sucessful Connection to : " + serialConfig.getString("data_in_port") + " @ BAUD: " + serialConfig.getInt("baud_rate"));
     }
     catch (Exception e){System.out.println(("ERROR: Failed to establish Serial Connection on : " + serialConfig.getString("port")));}
-
+    try
+    {
+      //serialOutPort = new Serial(this, serialConfig.getString("data_out_port"), serialConfig.getInt("baud_rate"));
+      serialOutPort = new Serial(this, Serial.list()[0], 115200);
+      System.out.println("DEBUG: Sucessful Connection to : " + serialConfig.getString("data_out_port") + " @ BAUD: " + serialConfig.getInt("baud_rate"));
+    }
+    catch (Exception e){System.out.println(("ERROR: Failed to establish Serial Connection on : " + serialConfig.getString("port")));}
+    
     // Configure Sensors
     for (int i = 0; i < sensors.size(); i++) 
     {
@@ -182,7 +194,7 @@ void setup()
        
        System.out.println("DEBUG: Successfully Configured sensor: " + name);
     }
-
+    
     // Configure Valves
     for (int i = 0; i < valves.size(); i++)
     {
@@ -201,7 +213,7 @@ void setup()
             .setValue(0)
             .setMode(ControlP5.SWITCH)
             .setColorActive(color(193, 39, 45));
-
+        
         // Create Status LEDs
         fill(color(green_led_color[0], green_led_color[1], green_led_color[2]));
         stroke(225);
@@ -221,8 +233,9 @@ void setup()
         text(nodeName, led_pos[0]+15, led_pos[1]+5);
     }
      
-    
+    setupComplete = true;
     System.out.println("DEBUG: SETUP COMPLETED!");
+    
 }
 
 // *<--------------------------------------------------Looped Code--------------------------------------------------->*
@@ -230,7 +243,7 @@ void draw()
 {
     // Attempt to get new Data and covert it to String Format
     JSONObject dataPacket_JSON_Obj = null;
-    byte[] inBuffer = serialPort.readBytesUntil('\n');
+    byte[] inBuffer = serialInPort.readBytesUntil('\n');
     if (inBuffer != null && inBuffer.length > 0)
     {
         // Convert the inBuffer to a String & Parse
@@ -242,7 +255,7 @@ void draw()
     if (dataPacket_JSON_Obj == null){return;}
 
     // Verify recipient ID
-    checkIfPacketIsForMe(dataPacket_JSON_Obj);
+    if(!checkIfPacketIsForMe(dataPacket_JSON_Obj)){return;}
 
     // Update States & Values
     UpdateWatchdogStates(dataPacket_JSON_Obj);
@@ -257,9 +270,16 @@ void draw()
 
     // Handle Logging if enabled and the log file has already been created, write the current states to the file
     HandleLogging();
-
-    // Read Valve Toggle Switches, Send Command Packets out through the Serial Line
-
+    
+    // Check if the cmds and states match
+    for(int i = 1; i < valve_cmds.length; i++)
+    {
+      if(valve_cmds[i] != valve_states[i])
+      {
+        SerialPrintValveStates();
+      }
+    }
+  
 }
 
 // *<----------------------------------------------Supporting Functions---------------------------------------------->*
@@ -318,6 +338,7 @@ void UpdateWatchdogStates(JSONObject dataPacket_JSON_Obj)
         if(node.getString("sender_id").equals(senderId))
         {
             lastUpdateTimes[i] = millis();  // Update the last received time
+            nodeTClocks[i] = dataPacket_JSON_Obj.getLong("0"); // 0 = Time
             nodeStates[i] = 1;              // Mark node as active
         }
     }
@@ -332,11 +353,11 @@ void UpdateSensorValues(JSONObject dataPacket_JSON_Obj)
         if (!sensor.getBoolean("enabled")) continue;  // Skip if not enabled
         
         // Check if this sensor is found in the datapacket
-        String sensorName = sensor.getString("name");
-        if(dataPacket_JSON_Obj.hasKey(sensorName+"_volts_counts"))
+        String sensorGID = sensor.getString("gid");
+        if(dataPacket_JSON_Obj.hasKey(sensorGID))
         {
             // Apply the slope and offset to the raw value
-            sensor_raw_values[i] = dataPacket_JSON_Obj.getFloat(sensorName+"_volts_counts");
+            sensor_raw_values[i] = dataPacket_JSON_Obj.getFloat(sensorGID);
             sensor_scaled_values[i] = sensor_raw_values[i] * sensor.getFloat("slope") + sensor.getFloat("offset");
             //System.out.println("DEBUG: Data Aquired for sensor: " + sensorName + " = " + sensor_scaled_values[i]);
         }
@@ -357,7 +378,8 @@ void UpdateSensorValueTable()
   // Insert new data
   for(int row = 0; row < sensors.size(); row++)
   {
-    if (!sensors.getJSONObject(row).getBoolean("enabled")) continue;  // Skip if not enabled
+    int[] plot_pos = sensors.getJSONObject(row).getJSONArray("plot_pos").getIntArray();
+    if (!sensors.getJSONObject(row).getBoolean("enabled") || (plot_pos[0] == 0 && plot_pos[1] == 0)) continue;  // Skip if not enabled or plot pos is 0,0
     
     int last_index = sensor_plot_values[row].length-1;
     sensor_plot_values[row][last_index] = sensor_scaled_values[row];
@@ -375,10 +397,10 @@ void UpdateValveStates(JSONObject dataPacket_JSON_Obj)
         if (!valve.getBoolean("enabled")) continue;  // Skip if not enabled
 
         // Check if this valve is defined in the packet structure
-        String valveName = valve.getString("name");
-        if(dataPacket_JSON_Obj.hasKey(valveName))
+        String valveGID = valve.getString("gid");
+        if(dataPacket_JSON_Obj.hasKey(valveGID))
         {
-            valve_states[i] = dataPacket_JSON_Obj.getInt(valveName);
+            valve_states[i] = dataPacket_JSON_Obj.getInt(valveGID);
         }
     }
 }
@@ -551,9 +573,30 @@ void toggleLogging()
   }
 }
 
+void SerialPrintValveStates()
+{
+  JSONObject node = nodes.getJSONObject(0);
+  
+  String outputString = "{\"recipient_id\": 0x02" + ", \"sender_id\": " + node.getString("sender_id");
+  
+  for(int i = 1; i < valves.size(); i++)
+  {
+    JSONObject valve = valves.getJSONObject(i);
+    
+    outputString += ", \"" +valve.getString("gid") + "\": " + valve_cmds[i];
+  }
+  
+  outputString += "}";
+  
+  serialOutPort.write(outputString +"\n");
+  println("Sent JSON to Arduino: " + outputString);
+}
+
 // *<----------------------------------------------Control Events----------------------------------------------->*
 void controlEvent(ControlEvent theEvent) 
 {
+  if(!setupComplete){return;}
+
   // Update Toggle Switch Color
   if(theEvent.isAssignableFrom(Toggle.class))
   {
@@ -567,9 +610,14 @@ void controlEvent(ControlEvent theEvent)
       int[] red_color_rgb = color_swatch.getJSONArray("RED").getIntArray();
       int[] green_color_rgb = color_swatch.getJSONArray("GREEN").getIntArray();
       
-      if(theEvent.getValue() == 1 && theEvent.getName().equals(valve_name)){cp5.get(Toggle.class, valve_name).setColorActive(color(green_color_rgb[0],green_color_rgb[1],green_color_rgb[2]));}
+      if(theEvent.getValue() == 1 && theEvent.getName().equals(valve_name)){cp5.get(Toggle.class, valve_name).setColorActive(color(green_color_rgb[0],green_color_rgb[1],green_color_rgb[2]));valve_cmds[i] = (int)theEvent.getValue();}
+      else if(theEvent.getValue() == 0 && theEvent.getName().equals(valve_name)){cp5.get(Toggle.class, valve_name).setColorActive(color(red_color_rgb[0],red_color_rgb[1],red_color_rgb[2]));valve_cmds[i] = 0;}
       else{cp5.get(Toggle.class, valve_name).setColorActive(color(red_color_rgb[0],red_color_rgb[1],red_color_rgb[2]));}
-  }
+      
+      
+    }
+    // Read Valve Toggle Switches, Send Command Packets out through the Serial Line
+    SerialPrintValveStates();
   
   // Check if the valve is the log_enabled cmd and is ON
   if(theEvent.getName().equals("log_enable"))
