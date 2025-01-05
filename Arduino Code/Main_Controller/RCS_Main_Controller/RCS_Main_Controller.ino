@@ -1,7 +1,7 @@
 /**
  *   RCS_IMU_Board_Ctrlr_Algo.ino
  *   Developed by: Shawn Victor
- *   Last Modified: 12-31-2024
+ *   Last Modified: 12-29-2024
  */
 
 // *<-----------------------------------------------------Libraries----------------------------------------------------->*
@@ -33,6 +33,7 @@
 #define XBEE_TX           0  // D0 (RX)
 #define XBEE_RX           1  // D1 (TX)
 #define SENDER_ID         0x01
+#define BAUD_RATE         115200 //115200
 
 // *<-------------------------------------------------Global Variables------------------------------------------------->*
 // Defining BNO085 IMU Objects from Library
@@ -42,7 +43,8 @@ sh2_SensorId_t    reportType;
 
 // Defining ADS1015 ADC Objects from Library
 Adafruit_ADS1115 ads;
-String adc_channel_names[] = {"pt_a003","pt_a009","batt_mon","ads1115_ch4","lc_a016","lc_a017","lc_a018","lc_a019"};
+String adc_channel_names[] = {"pt_a003","pt_a009","batt_mon","ads1115_ch4","lc_a016","lc_a017","lc_a018","lc_a019"}; //missing future lc-a020 and lc-a021
+String adc_channel_gids[]  = {"5","6","7","8","9","A","B","C"}; // missing future D,E
 int32_t adc_raw_counts[] = {0,0,0,0,0,0,0,0};
 
 // Defining HX711 ADC Objects from Library
@@ -70,9 +72,12 @@ quat_t  sp_quat;
 quat_t  pv_quat;
 quat_t  err_quat;
 unsigned long reportIntervalUs;
-unsigned long control_loop_delay_ms = 20;
+unsigned long control_loop_delay_ms = 0;
 float   DEADBAND_DEG = 1.0;
 
+// JSON Variables
+String incomingJson = ""; // Buffer to hold incoming data
+bool jsonComplete = false; // Flag to indicate a complete JSON packet
 
 // *<-------------------------------------------Helper Functions Declarations------------------------------------------>*
 quat_t calcErrorQuat(quat_t*,quat_t*);
@@ -81,14 +86,15 @@ quat_t multiplyQuats(quat_t*,quat_t*);
 void   normalizeQuat(quat_t*);
 String getJsonString();
 void tareHX711();
+void handleJsonPacket(String jsonPacket);
 
 
 // *<--------------------------------------------------Setup Functions------------------------------------------------->*
 void setup() 
 {
   // Serial Monitor Setup
-  Serial.begin(115200); // USB Serial for Debugging
-  //Serial1.begin(115200); // Hardware Serial for XBEE
+  Serial.begin(BAUD_RATE); // USB Serial for Debugging
+  Serial1.begin(BAUD_RATE); // Hardware Serial for XBEE
   Serial.println("DEBUG: IMU Ctrlr Board Serial Stream Successfully Setup!");
 
   // Configure Pins
@@ -99,8 +105,8 @@ void setup()
   pinMode(ROLL_SOL_POS, OUTPUT);
   pinMode(ROLL_SOL_NEG, OUTPUT);
   Serial.println("DEBUG: Solenoid Pins Configured!");
-  
-  // Configure ADS ADC
+
+  // Configure ADS ADC0
   ads.begin();
   Serial.println("DEBUG: ADS1015 ADC Configured!");
   
@@ -155,6 +161,26 @@ void setup()
 // *<---------------------------------------------------Loop Function-------------------------------------------------->*
 void loop() {
 
+  // Read Incoming Datastream
+  while (Serial1.available() > 0) {
+    char incomingChar = Serial1.read();
+    // Check for end of JSON packet (assumes newline ends the JSON)
+    if (incomingChar == '\n') {
+      jsonComplete = true;
+      break; // Exit the loop when JSON is complete
+    } else {
+      incomingJson += incomingChar; // Append character to the buffer
+    }
+  }
+  
+  // Process the JSON packet when complete
+  if (jsonComplete) {
+    handleJsonPacket(incomingJson);
+    incomingJson = "";   // Clear the buffer
+    jsonComplete = false; // Reset the flag
+  }
+  
+  
   // Request Sensor Event
   bool IMU_Event_Poll_Success = IMU.getSensorEvent(&sensorValue);
   if (IMU_Event_Poll_Success == false)
@@ -198,8 +224,9 @@ void loop() {
   sp_quat.k = 0.0;
 
   // Print Quat Data to Serial
-  
-  Serial.println(getJsonString());
+  String outputString = getJsonString();
+  //Serial.println(outputString);
+  Serial1.println(outputString);
   
   // If in the Stabilize State
   if(sys_state == 1)
@@ -242,6 +269,7 @@ void loop() {
 
   // Delay by set amount
   delay(control_loop_delay_ms);
+  
 }
 
 
@@ -308,39 +336,77 @@ String getJsonString()
 {
     String serialOutputString = "{";
     String valve_names[]    = {"sv_a010_tkbk","sv_a011_tkbk","sv_a012_tkbk","sv_a013_tkbk","sv_a014_tkbk","sv_a015_tkbk"};
+    String valve_gids[]    = {"G","H","I","J","K","L"};
 
     // Packet Header
     serialOutputString += "\"recipient_id\": " + String("0x00");
     serialOutputString += ", \"sender_id\": " + String("0x02");
 
     // System Variables
-    serialOutputString += ", \"t\": "            + String(millis());
-    serialOutputString += ", \"sys_state\": "   + String(sys_state);
+    serialOutputString += ", \"0\": "            + String(millis()); //time
     
     // IMU Variables
-    serialOutputString += ", \"qx\": "          + String(pv_quat.i, 2);
-    serialOutputString += ", \"qy\": "          + String(pv_quat.j, 2);
-    serialOutputString += ", \"qz\": "          + String(pv_quat.k, 2);
-    serialOutputString += ", \"qw\": "          + String(pv_quat.r, 2);
-
-    // Valve States
-    for(int i = 0; i < 6; i++)
-    {
-        serialOutputString += ", \"" + valve_names[i] + "\": " + String(valve_states[i]);
-    }
+    serialOutputString += ", \"1\": "          + String(pv_quat.i, 2);
+    serialOutputString += ", \"2\": "          + String(pv_quat.j, 2);
+    serialOutputString += ", \"3\": "          + String(pv_quat.k, 2);
+    serialOutputString += ", \"4\": "          + String(pv_quat.r, 2);
 
     // ADC Variables
     for(int i = 0; i < 4; i++)
     {
-        serialOutputString += ", \"" + adc_channel_names[i] + "_volts_counts\": " + String(adc_raw_counts[i]);
+        serialOutputString += ", \"" + adc_channel_gids[i] + "\": " + String(adc_raw_counts[i]);
     }
 
     // Load Cell Variables
     for(int i = 4; i < 8; i++)
     {
-        serialOutputString += ", \"" + adc_channel_names[i] + "_volts_counts\": " + String(adc_raw_counts[i]);
+        serialOutputString += ", \"" + adc_channel_gids[i] + "\": " + String(adc_raw_counts[i]);
     }
+
+    // Valve States
+    for(int i = 0; i < 6; i++)
+    {
+        serialOutputString += ", \"" + valve_gids[i] + "\": " + String(valve_states[i]);
+    }
+    serialOutputString += ", \"M\": "   + String(sys_state); //sys_state
 
     serialOutputString += "}";
     return serialOutputString;
+}
+
+void handleJsonPacket(String jsonString) {
+  Serial.println("I tried to act on this jsonpacket: " + jsonString);
+  
+  const char* keys[] = {"G", "H", "I", "J", "K", "L"};
+  const int numKeys = 6;
+
+  // Iterate over the keys and control valves accordingly
+    for (int i = 0; i < numKeys; i++) {
+        const char* key = keys[i];
+        int keyIndex = jsonString.indexOf(String("\"") + key + "\"");
+
+        if (keyIndex != -1) {
+            int colonIndex = jsonString.indexOf(':', keyIndex);
+            if (colonIndex != -1) {
+                // Skip any whitespace after the colon
+                int valueStartIndex = colonIndex + 1;
+                while (jsonString[valueStartIndex] == ' ') {
+                    valueStartIndex++;
+                }
+                char value = jsonString[valueStartIndex];
+
+                // Ensure the value is '0' or '1'
+                if (value == '0' || value == '1') {
+                    valve_states[i] = value - '0';
+                    Serial.println("valve state[" + String(i) + "] = " + String(valve_states[i]));
+                } else {
+                    Serial.print("Invalid value for key ");
+                    Serial.println(key);
+                }
+            }
+        } else {
+            Serial.print("Key not found: ");
+            Serial.println(key);
+        }
+    }
 }
